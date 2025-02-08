@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lorenz Attractor Visualization with Tchaikovsky Music and Color Change</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #1b1b1b;
+      flex-direction: column;
+    }
+    .controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    .control-label {
+      margin: 5px 0;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f0ad4e;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #ec971f;
+    }
+    input[type="color"] {
+      margin-top: 10px;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <div class="control-label">Sigma</div>
+    <input type="range" id="sigma" min="0" max="50" value="10">
+    <div id="sigma-value">10</div>
+
+    <div class="control-label">Rho</div>
+    <input type="range" id="rho" min="0" max="50" value="28">
+    <div id="rho-value">28</div>
+
+    <div class="control-label">Beta</div>
+    <input type="range" id="beta" min="0" max="10" value="2.6667">
+    <div id="beta-value">2.6667</div>
+
+    <div class="control-label">Attractor Color</div>
+    <input type="color" id="color-picker" value="#ff6400">
+
+    <button id="music-toggle">Play Music</button>
+  </div>
+
+  <script>
+    let x = 0.1, y = 0, z = 0; // initial conditions
+    let dt = 0.01; // time step
+    let sigma = 10, rho = 28, beta = 8 / 3; // Lorenz system parameters
+    let musicPlaying = false;
+    let music;
+    let attractorColor = "#ff6400"; // Default color (orange)
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight);
+      stroke(attractorColor); // Set initial color for the attractor
+      noFill();
+      
+      // Sliders for dynamic parameter control
+      let sigmaSlider = select('#sigma');
+      let rhoSlider = select('#rho');
+      let betaSlider = select('#beta');
+      let colorPicker = select('#color-picker');
+
+      sigmaSlider.input(updateParams);
+      rhoSlider.input(updateParams);
+      betaSlider.input(updateParams);
+      colorPicker.input(updateColor); // Update attractor color
+
+      updateParams(); // Initialize the values from the sliders
+
+      // Set up the music (Tchaikovsky - Swan Lake)
+      music = new Audio('https://www.bensound.com/bensound-music/bensound-creativeminds.mp3');  // Replace with Tchaikovsky URL
+      music.loop = true; // Loop the music
+
+      // Toggle music on/off
+      select('#music-toggle').mousePressed(toggleMusic);
+    }
+
+    function updateParams() {
+      // Update parameters based on slider values
+      sigma = parseFloat(select('#sigma').value());
+      rho = parseFloat(select('#rho').value());
+      beta = parseFloat(select('#beta').value());
+
+      // Update the displayed values next to the sliders
+      select('#sigma-value').html(sigma);
+      select('#rho-value').html(rho);
+      select('#beta-value').html(beta);
+    }
+
+    function updateColor() {
+      // Get the color selected by the user from the color picker
+      attractorColor = select('#color-picker').value();
+      stroke(attractorColor); // Change the attractor's color
+    }
+
+    function toggleMusic() {
+      if (musicPlaying) {
+        music.pause();
+        select('#music-toggle').html('Play Music');
+      } else {
+        music.play();
+        select('#music-toggle').html('Stop Music');
+      }
+      musicPlaying = !musicPlaying;
+    }
+
+    function draw() {
+      // Calculate Lorenz system dynamics
+      let dx = sigma * (y - x);
+      let dy = x * (rho - z) - y;
+      let dz = x * y - beta * z;
+
+      // Update the system's state
+      x += dx * dt;
+      y += dy * dt;
+      z += dz * dt;
+
+      // Map the chaotic values to the screen's coordinate system
+      let px = map(x, -30, 30, 0, width);
+      let py = map(y, -30, 30, 0, height);
+
+      // Draw the attractor
+      ellipse(px, py, 2, 2);
+    }
+  </script>
+</body>
+</html>
