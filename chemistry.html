@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=300, initial-scale=1.0">
+    <title>Fast Reaction-Diffusion</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: black; color: white; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        .controls { position: absolute; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; }
+        .slider { width: 150px; }
+        button { margin-top: 10px; padding: 5px; width: 100%; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+        <label>DiffA <input type="range" id="diffA" min="0.5" max="1.5" step="0.01" value="1.0" class="slider"></label><br>
+        <label>DiffB <input type="range" id="diffB" min="0.1" max="1.0" step="0.01" value="0.5" class="slider"></label><br>
+        <label>Feed <input type="range" id="feed" min="0.01" max="0.1" step="0.001" value="0.055" class="slider"></label><br>
+        <label>Kill <input type="range" id="kill" min="0.02" max="0.08" step="0.001" value="0.062" class="slider"></label><br>
+        <button id="cellDivision">Cell Division</button>
+        <button id="patternGrowing">Pattern Growing</button>
+        <button id="expGrowth">Exponential Growth</button>
+        <button id="reset">Refresh</button>
+    </div>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 200;
+        canvas.height = 200;
+        
+        const w = canvas.width, h = canvas.height;
+        const cols = w, rows = h;
+        let diffA = parseFloat(document.getElementById("diffA").value);
+        let diffB = parseFloat(document.getElementById("diffB").value);
+        let feed = parseFloat(document.getElementById("feed").value);
+        let kill = parseFloat(document.getElementById("kill").value);
+        const speedMultiplier = 10;
+
+        let A = new Float32Array(cols * rows).fill(1);
+        let B = new Float32Array(cols * rows).fill(0);
+        let nextA = new Float32Array(cols * rows);
+        let nextB = new Float32Array(cols * rows);
+
+        function idx(x, y) { return (x + cols) % cols + ((y + rows) % rows) * cols; }
+
+        for (let x = cols / 2 - 10; x < cols / 2 + 10; x++) {
+            for (let y = rows / 2 - 10; y < rows / 2 + 10; y++) {
+                B[idx(x, y)] = 1;
+            }
+        }
+
+        function laplacian(grid, x, y) {
+            return (
+                0.2 * (grid[idx(x - 1, y)] + grid[idx(x + 1, y)] +
+                       grid[idx(x, y - 1)] + grid[idx(x, y + 1)]) +
+                0.05 * (grid[idx(x - 1, y - 1)] + grid[idx(x + 1, y - 1)] +
+                        grid[idx(x - 1, y + 1)] + grid[idx(x + 1, y + 1)]) -
+                grid[idx(x, y)]
+            );
+        }
+
+        const radius = Math.min(cols, rows) / 2;
+        const centerX = cols / 2, centerY = rows / 2;
+
+        function isInsideCircle(x, y) {
+            return (x - centerX) ** 2 + (y - centerY) ** 2 < radius ** 2;
+        }
+
+        function update() {
+            for (let i = 0; i < speedMultiplier; i++) {
+                for (let x = 1; x < cols - 1; x++) {
+                    for (let y = 1; y < rows - 1; y++) {
+                        if (!isInsideCircle(x, y)) continue;
+
+                        let index = idx(x, y);
+                        let lapA = laplacian(A, x, y);
+                        let lapB = laplacian(B, x, y);
+                        let reaction = A[index] * B[index] * B[index];
+
+                        nextA[index] = A[index] + (diffA * lapA - reaction + feed * (1 - A[index]));
+                        nextB[index] = B[index] + (diffB * lapB + reaction - (kill + feed) * B[index]);
+
+                        nextA[index] = Math.max(0, Math.min(1, nextA[index]));
+                        nextB[index] = Math.max(0, Math.min(1, nextB[index]));
+                    }
+                }
+
+                [A, nextA] = [nextA, A];
+                [B, nextB] = [nextB, B];
+            }
+        }
+
+        function draw() {
+            let imageData = ctx.getImageData(0, 0, w, h);
+            let pixels = imageData.data;
+
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    let index = idx(x, y);
+                    let pixelIndex = (y * w + x) * 4;
+                    let value = Math.floor((A[index] - B[index]) * 255);
+                    pixels[pixelIndex] = value;
+                    pixels[pixelIndex + 1] = value;
+                    pixels[pixelIndex + 2] = 255;
+                    pixels[pixelIndex + 3] = 255;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        document.getElementById("reset").addEventListener("click", () => location.reload());
+
+        document.getElementById("patternGrowing").addEventListener("click", () => {
+            document.getElementById("diffA").value = "1.0";
+            document.getElementById("diffB").value = "0.6";
+            document.getElementById("feed").value = "0.04";
+            document.getElementById("kill").value = "0.06";
+        });
+
+        document.getElementById("cellDivision").addEventListener("click", () => {
+            document.getElementById("diffA").value = "0.61";
+            document.getElementById("diffB").value = "0.16";
+            document.getElementById("feed").value = "0.079";
+            document.getElementById("kill").value = "0.073";
+        });
+
+        document.getElementById("expGrowth").addEventListener("click", () => {
+            document.getElementById("diffA").value = "0.9";
+            document.getElementById("diffB").value = "0.62";
+            document.getElementById("feed").value = "0.053";
+            document.getElementById("kill").value = "0.056";
+        });
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
